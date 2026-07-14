@@ -36,9 +36,10 @@ content-type: application/json
 ## Swagger UI
 
 Interactive docs at `http://localhost:8000/docs`. Screenshot below shows a
-successful `POST /tasks` via "Try it out":
+successful `POST /tasks` and via "Try it out":
 
 ![Swagger screenshot](swagger-screenshot.png)
+![GET /tasks screenshot](get-screenshot.png)
 
 ## Notes on in-memory storage
 
