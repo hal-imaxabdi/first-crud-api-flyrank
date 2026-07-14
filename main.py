@@ -2,9 +2,12 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
-app = FastAPI()
+app = FastAPI(
+    title="Task API",
+    description="A tiny CRUD API for managing an in-memory to-do list.",
+    version="1.0"
+)
 
-# our "database" - just a list in memory
 tasks = [
     {"id": 1, "title": "Buy groceries", "done": False},
     {"id": 2, "title": "Finish assignment", "done": False},
@@ -18,7 +21,7 @@ class TaskUpdate(BaseModel):
     title: Optional[str] = None
     done: Optional[bool] = None
 
-@app.get("/")
+@app.get("/", description="Basic info about this API")
 def read_root():
     return {
         "name": "Task API",
@@ -26,22 +29,22 @@ def read_root():
         "endpoints": ["/tasks"]
     }
 
-@app.get("/health")
+@app.get("/health", description="Health check - confirms the server is alive")
 def health_check():
     return {"status": "ok"}
 
-@app.get("/tasks")
+@app.get("/tasks", description="List all tasks")
 def get_tasks():
     return tasks
 
-@app.get("/tasks/{task_id}")
+@app.get("/tasks/{task_id}", description="Get a single task by id")
 def get_task(task_id: int):
     for task in tasks:
         if task["id"] == task_id:
             return task
     raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
 
-@app.post("/tasks", status_code=201)
+@app.post("/tasks", status_code=201, description="Create a new task")
 def create_task(new_task: TaskCreate):
     if not new_task.title or not new_task.title.strip():
         raise HTTPException(status_code=400, detail="Title is required and cannot be empty")
@@ -51,7 +54,7 @@ def create_task(new_task: TaskCreate):
     tasks.append(task)
     return task
 
-@app.put("/tasks/{task_id}")
+@app.put("/tasks/{task_id}", description="Update a task's title and/or done status")
 def update_task(task_id: int, updates: TaskUpdate):
     for task in tasks:
         if task["id"] == task_id:
@@ -64,7 +67,7 @@ def update_task(task_id: int, updates: TaskUpdate):
             return task
     raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
 
-@app.delete("/tasks/{task_id}", status_code=204)
+@app.delete("/tasks/{task_id}", status_code=204, description="Delete a task by id")
 def delete_task(task_id: int):
     for i, task in enumerate(tasks):
         if task["id"] == task_id:
