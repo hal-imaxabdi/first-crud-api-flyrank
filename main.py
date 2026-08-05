@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Header
+from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 
@@ -11,11 +11,12 @@ from database import (
     delete_task,
 )
 from supabase_client import supabase
+from auth import get_current_user
 
 app = FastAPI(
     title="Task API",
     description="A tiny CRUD API for managing a to-do list, backed by Postgres, with Supabase auth.",
-    version="3.0",
+    version="4.0",
     openapi_tags=[
         {"name": "General", "description": "Basic info and health checks"},
         {"name": "Tasks", "description": "Create, read, update, and delete tasks"},
@@ -50,8 +51,11 @@ class AuthCredentials(BaseModel):
 def read_root():
     return {
         "name": "Task API",
-        "version": "3.0",
-        "endpoints": ["/tasks", "/auth/signup", "/auth/login", "/public/info", "/protected/profile"],
+        "version": "4.0",
+        "endpoints": [
+            "/tasks", "/auth/signup", "/auth/login", "/auth/logout",
+            "/public/info", "/protected/profile", "/protected/dashboard",
+        ],
     }
 
 
@@ -96,34 +100,38 @@ def login(credentials: AuthCredentials):
     }
 
 
+@app.post("/auth/logout", status_code=204, tags=["Auth"], summary="Log out the current user")
+def logout(current=Depends(get_current_user)):
+    token = current["token"]
+    try:
+        supabase.auth.sign_out(token)
+    except Exception:
+        # Even if Supabase's sign_out call has trouble (e.g. token already
+        # expired), the client should still treat this as "logged out" --
+        # there's no meaningful error to surface back to them here.
+        pass
+    return None
+
+
 @app.get("/public/info", tags=["Auth"], summary="Public, unprotected info")
 def public_info():
     return {"message": "Welcome stranger! This info is public."}
 
 
 @app.get("/protected/profile", tags=["Auth"], summary="Get the logged-in user's profile")
-def get_profile(authorization: Optional[str] = Header(None)):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Access token required")
-
-    token = authorization.removeprefix("Bearer ").strip()
-    if not token:
-        raise HTTPException(status_code=401, detail="Access token required")
-
-    try:
-        result = supabase.auth.get_user(token)
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-    if result is None or result.user is None:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-    user = result.user
+def get_profile(current=Depends(get_current_user)):
+    user = current["user"]
     return {
         "id": user.id,
         "email": user.email,
         "created_at": user.created_at,
     }
+
+
+@app.get("/protected/dashboard", tags=["Auth"], summary="Example second protected route")
+def get_dashboard(current=Depends(get_current_user)):
+    user = current["user"]
+    return {"message": f"Welcome to your dashboard, {user.email}"}
 
 
 # ---------- Tasks ----------
