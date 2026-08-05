@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-
+from supabase_client import supabase
 from database import (
     init_db,
     get_all_tasks,
@@ -24,10 +24,10 @@ app = FastAPI(
 
 @app.on_event("startup")
 def on_startup():
-    # Creates tasks.db and the tasks table if they don't already exist,
-    # and seeds 3 example tasks the very first time the app runs.
+    # Creates the tasks table if it doesn't already exist, and seeds 3
+    # example tasks the very first time the app runs.
     init_db()
-
+    print("Server running and connected to Supabase")
 
 class TaskCreate(BaseModel):
     title: str
