@@ -1,7 +1,7 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel
 from typing import Optional
-from supabase_client import supabase
+
 from database import (
     init_db,
     get_all_tasks,
@@ -10,11 +10,12 @@ from database import (
     update_task,
     delete_task,
 )
+from supabase_client import supabase
 
 app = FastAPI(
     title="Task API",
-    description="A tiny CRUD API for managing a to-do list, backed by SQLite.",
-    version="2.0",
+    description="A tiny CRUD API for managing a to-do list, backed by Postgres, with Supabase auth.",
+    version="3.0",
     openapi_tags=[
         {"name": "General", "description": "Basic info and health checks"},
         {"name": "Tasks", "description": "Create, read, update, and delete tasks"},
@@ -30,6 +31,7 @@ def on_startup():
     init_db()
     print("Server running and connected to Supabase")
 
+
 class TaskCreate(BaseModel):
     title: str
 
@@ -38,10 +40,27 @@ class TaskUpdate(BaseModel):
     title: Optional[str] = None
     done: Optional[bool] = None
 
+
 class AuthCredentials(BaseModel):
     email: str
     password: str
 
+
+@app.get("/", tags=["General"], summary="API info")
+def read_root():
+    return {
+        "name": "Task API",
+        "version": "3.0",
+        "endpoints": ["/tasks", "/auth/signup", "/auth/login", "/public/info", "/protected/profile"],
+    }
+
+
+@app.get("/health", tags=["General"], summary="Health check")
+def health_check():
+    return {"status": "ok"}
+
+
+# ---------- Auth ----------
 
 @app.post("/auth/signup", status_code=201, tags=["Auth"], summary="Create a new user account")
 def signup(credentials: AuthCredentials):
@@ -76,19 +95,27 @@ def login(credentials: AuthCredentials):
         "user": result.user.model_dump(mode="json"),
     }
 
-@app.get("/", tags=["General"], summary="API info")
-def read_root():
-    return {
-        "name": "Task API",
-        "version": "2.0",
-        "endpoints": ["/tasks"],
-    }
+
+@app.get("/public/info", tags=["Auth"], summary="Public, unprotected info")
+def public_info():
+    return {"message": "Welcome stranger! This info is public."}
 
 
-@app.get("/health", tags=["General"], summary="Health check")
-def health_check():
-    return {"status": "ok"}
+@app.get("/protected/profile", tags=["Auth"], summary="Get the logged-in user's profile")
+def get_profile(authorization: Optional[str] = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Access token required")
 
+    token = authorization.removeprefix("Bearer ").strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="Access token required")
+
+    # Stage 2 only checks that a token is present and well-formatted.
+    # Stage 3 will verify it's actually valid with Supabase.
+    return {"message": "Token received, verification comes in Stage 3"}
+
+
+# ---------- Tasks ----------
 
 @app.get("/tasks", tags=["Tasks"], summary="List all tasks")
 def get_tasks():
