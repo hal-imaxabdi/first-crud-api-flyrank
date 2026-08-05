@@ -18,6 +18,7 @@ app = FastAPI(
     openapi_tags=[
         {"name": "General", "description": "Basic info and health checks"},
         {"name": "Tasks", "description": "Create, read, update, and delete tasks"},
+        {"name": "Auth", "description": "Sign up, log in, and log out"},
     ],
 )
 
@@ -37,6 +38,43 @@ class TaskUpdate(BaseModel):
     title: Optional[str] = None
     done: Optional[bool] = None
 
+class AuthCredentials(BaseModel):
+    email: str
+    password: str
+
+
+@app.post("/auth/signup", status_code=201, tags=["Auth"], summary="Create a new user account")
+def signup(credentials: AuthCredentials):
+    if not credentials.email.strip() or not credentials.password.strip():
+        raise HTTPException(status_code=400, detail="Email and password are required")
+
+    try:
+        result = supabase.auth.sign_up(
+            {"email": credentials.email, "password": credentials.password}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return result.user.model_dump(mode="json")
+
+
+@app.post("/auth/login", tags=["Auth"], summary="Authenticate user and return JWT")
+def login(credentials: AuthCredentials):
+    if not credentials.email.strip() or not credentials.password.strip():
+        raise HTTPException(status_code=400, detail="Email and password are required")
+
+    try:
+        result = supabase.auth.sign_in_with_password(
+            {"email": credentials.email, "password": credentials.password}
+        )
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid login credentials")
+
+    return {
+        "access_token": result.session.access_token,
+        "refresh_token": result.session.refresh_token,
+        "user": result.user.model_dump(mode="json"),
+    }
 
 @app.get("/", tags=["General"], summary="API info")
 def read_root():
