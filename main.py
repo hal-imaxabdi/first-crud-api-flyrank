@@ -110,9 +110,20 @@ def get_profile(authorization: Optional[str] = Header(None)):
     if not token:
         raise HTTPException(status_code=401, detail="Access token required")
 
-    # Stage 2 only checks that a token is present and well-formatted.
-    # Stage 3 will verify it's actually valid with Supabase.
-    return {"message": "Token received, verification comes in Stage 3"}
+    try:
+        result = supabase.auth.get_user(token)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    if result is None or result.user is None:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user = result.user
+    return {
+        "id": user.id,
+        "email": user.email,
+        "created_at": user.created_at,
+    }
 
 
 # ---------- Tasks ----------

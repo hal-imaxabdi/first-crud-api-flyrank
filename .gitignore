@@ -3,3 +3,5 @@ __pycache__/
 tasks.db
 .env
 venv/
+login_response.json
+token.txt
