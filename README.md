@@ -1,4 +1,37 @@
-# Task API (CRUD + SQLite)
+# Task API (CRUD + Postgres, Dockerized)
+
+## W3·A3 update: Postgres in Docker
+
+This version (W3·A3) replaces SQLite with Postgres, running in Docker
+alongside the app via `docker compose up`.
+
+**Only `database.py` changed.** `main.py` and every route are byte-for-byte
+identical to the SQLite version — same function names
+(`get_all_tasks()`, `insert_task()`, etc.), same request/response shapes.
+That's the point of keeping SQL isolated behind a small set of functions:
+swapping the storage engine is a one-file change.
+
+### Run it
+
+```
+cp .env.example .env      # only needed once
+docker compose up --build
+```
+
+App: `http://localhost:8000/docs`. Postgres data lives in a named Docker
+volume (`pgdata`), so it survives container restarts.
+
+### Persistence check (how I verified it)
+
+1. Created a task via `POST /tasks`.
+2. Ran `docker compose down` (stops both containers).
+3. Ran `docker compose up` again (no `--build`, no fresh volume).
+4. `GET /tasks` still showed the task I created in step 1 — confirming data
+   survives an app + container restart, not just a Python process restart.
+
+---
+
+# Task API (CRUD + SQLite) — original W3·A1 version below
 
 A small CRUD API for managing a to-do list, built with FastAPI.
 Originally built for W2·A1 (in-memory storage). This version (W3·A1)
